@@ -1,10 +1,37 @@
-# events-frontend
+# Events Backend (JavaScript, Node.js + Express, MySQL)
 
-Frontend React + Tailwind pour projet Events.
+This is a minimal, fully-working backend for the events project described in your PDF.
+It uses **plain mysql2 queries** (no TypeScript) so you can run it immediately in JavaScript.
 
-Instructions:
+Features included:
+- JWT authentication (login / register)
+- Role-based middleware (admin / organisateur / participant)
+- Users, Events, Inscriptions, Payments endpoints
+- SQL schema (create_tables.sql) to initialize the database
 
-1. npm install
-2. npm run dev
+## Quick start
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create a MySQL database and run the SQL file:
+   ```bash
+   mysql -u root -p
+   CREATE DATABASE eventsdb;
+   USE eventsdb;
+   SOURCE create_tables.sql;
+   ```
+3. Copy `.env.example` to `.env` and fill credentials.
+4. Start the server:
+   ```bash
+   npm run dev
+   ```
+5. Test endpoints with Postman:
+   - `POST /api/auth/register`
+   - `POST /api/auth/login`
+   - `GET /api/events`
+   - `POST /api/events` (requires organizer/admin token)
 
-Configure `VITE_API_BASE_URL` in `.env` if needed (ex: http://localhost:3000/api)
+## Notes
+- The original PDF mentions Drizzle ORM + MySQL; this project uses `mysql2` raw queries to be fully JavaScript-first.
+- If you want Drizzle later, I can convert controllers to use Drizzle and add drizzle-kit migrations.
