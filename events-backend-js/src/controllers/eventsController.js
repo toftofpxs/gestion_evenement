@@ -1,10 +1,13 @@
 // src/controllers/eventsController.js
 import { EventModel } from "../models/eventModel.js";
+import { db } from "../db/index.js";
+import { users } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 /* -------------------- Lister tous les événements publics -------------------- */
 export const listEvents = async (req, res, next) => {
   try {
-    const events = await EventModel.findAll();
+    const events = await EventModel.findUpcoming();
     res.json(events);
   } catch (err) {
     next(err);
@@ -26,8 +29,24 @@ export const getEvent = async (req, res, next) => {
 /* -------------------- Créer un événement (avec photos) -------------------- */
 export const createEvent = async (req, res, next) => {
   try {
-    const { title, description, location, date, price } = req.body;
+    const { title, description, location, date, price, capacity } = req.body;
     const organizer_id = Number(req.user.id);
+
+    if (capacity === undefined || capacity === null || String(capacity).trim() === '') {
+      return res.status(400).json({ message: "Capacity is required" });
+    }
+
+    const parsedCapacity = Number(capacity);
+    if (!Number.isFinite(parsedCapacity) || parsedCapacity <= 0) {
+      return res.status(400).json({ message: "Invalid capacity" });
+    }
+
+    if (req.user.role !== "admin") {
+      await db
+        .update(users)
+        .set({ role: "organisateur" })
+        .where(eq(users.id, organizer_id));
+    }
 
     // Validation de la date
     const eventDate = date instanceof Date ? date : new Date(date);
@@ -67,6 +86,7 @@ export const createEvent = async (req, res, next) => {
       location,
       date: eventDate,
       price,
+      capacity: Math.floor(parsedCapacity),
       organizer_id,
       photos, // tableau d’URL vers les images
     });
@@ -90,6 +110,18 @@ export const updateEvent = async (req, res, next) => {
     }
 
     const fields = { ...req.body };
+
+    if (fields.capacity === undefined || fields.capacity === null || String(fields.capacity).trim() === '') {
+      return res.status(400).json({ message: "Capacity is required" })
+    }
+
+    {
+      const cap = Number(fields.capacity)
+      if (!Number.isFinite(cap) || cap <= 0) {
+        return res.status(400).json({ message: "Invalid capacity" })
+      }
+      fields.capacity = Math.floor(cap)
+    }
 
     // Normalize existing photos sent from the client (JSON string or array)
     let existingPhotos = [];

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS events (
   description TEXT,
   location VARCHAR(255),
   date DATETIME,
+  capacity INT NOT NULL,
   price DECIMAL(10,2) DEFAULT 0,
   organizer_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

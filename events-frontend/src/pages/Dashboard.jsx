@@ -1,24 +1,26 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AuthContext } from '../contexts/AuthContext'
 import api from '../services/api'
+import EventForm from '../components/EventForm'
+import { createEvent, updateEvent } from '../services/eventsService'
 
 export default function Dashboard() {
-  const { user } = useContext(AuthContext)
+  const { user, refreshProfile } = useContext(AuthContext)
 
   const [inscriptions, setInscriptions] = useState({ enCours: [], passes: [] })
   const [myEvents, setMyEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    description: '',
-    location: '',
-    date: '',   // "YYYY-MM-DDTHH:mm" (datetime-local)
-    price: '',
-  })
-  const [creating, setCreating] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [pseudo, setPseudo] = useState('')
+  const [savingPseudo, setSavingPseudo] = useState(false)
+
+  useEffect(() => {
+    setPseudo(user?.name || '')
+  }, [user?.name])
 
   // Charge inscriptions + mes événements (pour TOUT user connecté)
   useEffect(() => {
@@ -70,19 +72,10 @@ export default function Dashboard() {
     }
   }
 
-  // Création d’un événement (backend convertira la date en Date JS)
-  const handleCreateEvent = async (e) => {
-    e.preventDefault()
+  const handleCreateEvent = async (formData) => {
     try {
-      setCreating(true)
-      await api.post('/events', {
-        title: newEvent.title,
-        description: newEvent.description,
-        location: newEvent.location,
-        date: newEvent.date,  // "YYYY-MM-DD" ou "YYYY-MM-DDTHH:mm"
-        price: newEvent.price || '0',
-      })
-      setNewEvent({ title: '', description: '', location: '', date: '', price: '' })
+      setSubmitting(true)
+      await createEvent(formData)
       await refreshMyEvents()
       setShowCreate(false) // refermer le formulaire
       alert('Événement créé 🎉')
@@ -90,7 +83,23 @@ export default function Dashboard() {
       console.error(err)
       alert("Erreur lors de la création de l’événement.")
     } finally {
-      setCreating(false)
+      setSubmitting(false)
+    }
+  }
+
+  const handleUpdateEvent = async (formData) => {
+    if (!editingId) return
+    try {
+      setSubmitting(true)
+      await updateEvent(editingId, formData)
+      await refreshMyEvents()
+      setEditingId(null)
+      alert('Événement modifié ✅')
+    } catch (err) {
+      console.error(err)
+      alert(err.response?.data?.message || "Erreur lors de la modification de l’événement.")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -110,11 +119,66 @@ export default function Dashboard() {
     }
   }
 
+  const getPhotoUrl = (photo) => {
+    if (!photo) return ''
+    if (photo.startsWith('http://') || photo.startsWith('https://')) return photo
+    const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '')
+    return `${apiBase}${photo.startsWith('/') ? photo : `/${photo}`}`
+  }
+
+  const handleUpdatePseudo = async (e) => {
+    e.preventDefault()
+
+    const normalized = (pseudo || '').trim()
+    if (!normalized) {
+      alert('Le pseudo est obligatoire.')
+      return
+    }
+
+    if (!/^[A-Za-z0-9]+$/.test(normalized)) {
+      alert('Le pseudo doit contenir uniquement des lettres et des chiffres.')
+      return
+    }
+
+    try {
+      setSavingPseudo(true)
+      await api.put('/users/me', { name: normalized })
+      await refreshProfile?.()
+      alert('Pseudo modifié ✅')
+    } catch (err) {
+      console.error(err)
+      alert(err.response?.data?.message || 'Erreur lors de la modification du pseudo.')
+    } finally {
+      setSavingPseudo(false)
+    }
+  }
+
   if (loading) return <p className="p-6">Chargement…</p>
 
   return (
     <div className="max-w-5xl mx-auto mt-8 px-4 space-y-10">
       <h1 className="text-2xl font-bold">Bonjour, {user?.name}</h1>
+
+      <section className="bg-gray-50 rounded-lg p-4 shadow">
+        <h2 className="text-xl font-semibold mb-3">Mon pseudo</h2>
+        <form onSubmit={handleUpdatePseudo} className="flex flex-col md:flex-row gap-3 md:items-center">
+          <input
+            value={pseudo}
+            onChange={(e) => setPseudo(e.target.value)}
+            placeholder="Pseudo (lettres et chiffres)"
+            className="border p-2 rounded w-full md:max-w-sm"
+            maxLength={30}
+            required
+          />
+          <button
+            type="submit"
+            disabled={savingPseudo}
+            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-900 disabled:opacity-60"
+          >
+            {savingPseudo ? 'Enregistrement…' : 'Modifier mon pseudo'}
+          </button>
+        </form>
+      </section>
 
       {/* ——— Mes inscriptions ——— */}
       <section className="bg-gray-50 rounded-lg p-4 shadow">
@@ -173,54 +237,13 @@ export default function Dashboard() {
 
           {/* Formulaire repliable */}
           {showCreate && (
-            <form onSubmit={handleCreateEvent} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-              <input
-                className="border p-2 rounded"
-                placeholder="Titre"
-                value={newEvent.title}
-                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                required
+            <div className="mb-6">
+              <EventForm
+                onSubmit={handleCreateEvent}
+                initial={{}}
+                isLoading={submitting}
               />
-              <input
-                className="border p-2 rounded"
-                placeholder="Lieu"
-                value={newEvent.location}
-                onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                required
-              />
-              <input
-                type="datetime-local"
-                className="border p-2 rounded"
-                value={newEvent.date}
-                onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                required
-              />
-              <input
-                type="number"
-                className="border p-2 rounded"
-                placeholder="Prix (€)"
-                value={newEvent.price}
-                onChange={(e) => setNewEvent({ ...newEvent, price: e.target.value })}
-                min="0"
-                step="0.01"
-              />
-              <textarea
-                className="border p-2 rounded md:col-span-2"
-                placeholder="Description"
-                value={newEvent.description}
-                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                required
-              />
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-60"
-                >
-                  {creating ? 'Création…' : 'Publier'}
-                </button>
-              </div>
-            </form>
+            </div>
           )}
 
           {/* Liste de MES événements */}
@@ -231,12 +254,25 @@ export default function Dashboard() {
               {myEvents.map((ev) => (
                 <li key={ev.id} className="bg-white p-3 rounded shadow flex flex-wrap md:flex-nowrap md:items-center justify-between gap-2">
                   <div>
+                    {Array.isArray(ev.photos) && ev.photos.length > 0 && (
+                      <img
+                        src={getPhotoUrl(ev.photos[0])}
+                        alt={ev.title}
+                        className="w-20 h-20 object-cover rounded mb-2"
+                      />
+                    )}
                     <strong>{ev.title}</strong>{' '}
                     <span className="text-sm text-gray-600">
                       — {ev.location} — {new Date(ev.date).toLocaleString('fr-FR')}
                     </span>
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingId(ev.id)}
+                      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                    >
+                      Modifier
+                    </button>
                     <button
                       onClick={() => handleDeleteEvent(ev.id)}
                       disabled={deletingId === ev.id}
@@ -248,6 +284,23 @@ export default function Dashboard() {
                 </li>
               ))}
             </ul>
+          )}
+
+          {editingId && (
+            <div className="mt-6 border-t pt-4">
+              <h3 className="text-lg font-semibold mb-3">Modifier mon événement</h3>
+              <EventForm
+                onSubmit={handleUpdateEvent}
+                initial={myEvents.find((e) => e.id === editingId) || {}}
+                isLoading={submitting}
+              />
+              <button
+                onClick={() => setEditingId(null)}
+                className="mt-3 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Annuler
+              </button>
+            </div>
           )}
         </section>
       )}
