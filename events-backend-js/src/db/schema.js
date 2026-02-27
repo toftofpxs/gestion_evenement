@@ -30,6 +30,7 @@ export const events = mysqlTable("events", {
   location: varchar("location", { length: 255 }),
   // IMPORTANT : Drizzle attend un objet Date côté JS
   date: timestamp("date").notNull(),
+  capacity: int("capacity").notNull(),
   // decimal: passez des strings au modèle pour éviter les soucis de flot
   price: decimal("price", { precision: 10, scale: 2 }).default("0"),
   organizer_id: int("organizer_id").notNull().references(() => users.id),

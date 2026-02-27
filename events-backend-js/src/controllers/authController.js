@@ -2,15 +2,25 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { UserModel } from "../models/userModel.js";
+import { db } from "../db/index.js";
+import { users } from "../db/schema.js";
+import { sql } from "drizzle-orm";
 
 dotenv.config();
+
+const USERNAME_REGEX = /^[A-Za-z0-9]+$/;
 
 export const register = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
 
-    if (!name || !email || !password) {
+    if (!normalizedName || !email || !password) {
       return res.status(400).json({ message: "Missing fields" });
+    }
+
+    if (!USERNAME_REGEX.test(normalizedName)) {
+      return res.status(400).json({ message: "Username must contain only letters and numbers" });
     }
 
     const existing = await UserModel.findByEmail(email);
@@ -18,8 +28,17 @@ export const register = async (req, res, next) => {
       return res.status(400).json({ message: "Email already used" });
     }
 
+    const existingName = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`LOWER(${users.name}) = LOWER(${normalizedName})`)
+      .then((rows) => rows[0]);
+    if (existingName) {
+      return res.status(400).json({ message: "Username already used" });
+    }
+
     const password_hash = await bcrypt.hash(password, 10);
-    const user = await UserModel.create({ name, email, password_hash, role: role || "participant" });
+    const user = await UserModel.create({ name: normalizedName, email, password_hash, role: role || "participant" });
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
