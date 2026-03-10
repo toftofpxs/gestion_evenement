@@ -1,6 +1,9 @@
 import { db } from "../db/index.js";
 import { users, events, inscriptions, payments } from "../db/schema.js";
 import { eq, sql } from "drizzle-orm";
+import { EventModel } from "../models/eventModel.js";
+
+const USERNAME_REGEX = /^[A-Za-z0-9]+$/;
 
 export const listEventsSummary = async (req, res, next) => {
   try {
@@ -26,6 +29,19 @@ export const listEventsSummary = async (req, res, next) => {
       .groupBy(events.id, users.id)
       .orderBy(events.date);
 
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listAllEvents = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const rows = await EventModel.findAll();
     res.json(rows);
   } catch (err) {
     next(err);
@@ -76,6 +92,84 @@ export const demoteUser = async (req, res, next) => {
     await db.update(users).set({ role: 'participant' }).where(eq(users.id, id));
     const u = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role }).from(users).where(eq(users.id, id)).then(r=>r[0]);
     res.json(u);
+  } catch (err) { next(err); }
+};
+
+export const setUserOrganizer = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid user id' });
+
+    const target = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, id)).then(r => r[0]);
+    if (!target) return res.status(404).json({ message: 'User not found' });
+    if (target.role === 'admin') return res.status(403).json({ message: 'Cannot change admin role with this action' });
+
+    await db.update(users).set({ role: 'organisateur' }).where(eq(users.id, id));
+    const u = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role }).from(users).where(eq(users.id, id)).then(r=>r[0]);
+    res.json(u);
+  } catch (err) { next(err); }
+};
+
+export const setUserParticipant = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid user id' });
+
+    const target = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, id)).then(r => r[0]);
+    if (!target) return res.status(404).json({ message: 'User not found' });
+    if (target.role === 'admin') return res.status(403).json({ message: 'Cannot change admin role with this action' });
+
+    await db.update(users).set({ role: 'participant' }).where(eq(users.id, id));
+    const u = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role }).from(users).where(eq(users.id, id)).then(r=>r[0]);
+    res.json(u);
+  } catch (err) { next(err); }
+};
+
+export const updateUserName = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid user id' });
+
+    const { name } = req.body;
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
+    if (!normalizedName) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+
+    if (!USERNAME_REGEX.test(normalizedName)) {
+      return res.status(400).json({ message: 'Username must contain only letters and numbers' });
+    }
+
+    const target = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).then(r => r[0]);
+    if (!target) return res.status(404).json({ message: 'User not found' });
+
+    const existingName = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`LOWER(${users.name}) = LOWER(${normalizedName}) AND ${users.id} <> ${id}`)
+      .then(r => r[0]);
+    if (existingName) {
+      return res.status(400).json({ message: 'Username already used' });
+    }
+
+    await db.update(users).set({ name: normalizedName }).where(eq(users.id, id));
+    const updated = await db
+      .select({ id: users.id, name: users.name, email: users.email, role: users.role, created_at: users.created_at })
+      .from(users)
+      .where(eq(users.id, id))
+      .then(r => r[0]);
+
+    res.json(updated);
   } catch (err) { next(err); }
 };
 

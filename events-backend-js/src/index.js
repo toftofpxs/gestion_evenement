@@ -46,9 +46,20 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 
 
-// ✅ Autoriser le frontend (localhost:5173)
+// ✅ CORS dev : autoriser localhost/127.0.0.1 sur n'importe quel port
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const allowed = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    if (allowed) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
   credentials: true,
 }));
 
@@ -76,5 +87,5 @@ export default app;
 
 // 🚀 Démarrer le serveur uniquement en production
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on 0.0.0.0:${PORT}`));
 

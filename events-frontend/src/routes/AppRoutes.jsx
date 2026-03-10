@@ -6,7 +6,6 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
 import Admin from '../pages/Admin';
-import Organizer from '../pages/Organizer';
 
 const AppRoutes = () => {
   return (
@@ -29,14 +28,6 @@ const AppRoutes = () => {
         element={
           <PrivateRoute>
             <Admin />
-          </PrivateRoute>
-        } 
-      />
-      <Route 
-        path="/organizer" 
-        element={
-          <PrivateRoute>
-            <Organizer />
           </PrivateRoute>
         } 
       />

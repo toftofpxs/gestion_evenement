@@ -1,6 +1,9 @@
 // src/controllers/inscriptionsController.js
 import { InscriptionModel } from "../models/InscriptionModel.js";
 import { EventModel } from "../models/eventModel.js";
+import { db } from "../db/index.js";
+import { users, inscriptions } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 
 /**
  * POST /api/inscriptions
@@ -12,12 +15,35 @@ export const createInscription = async (req, res, next) => {
     const { event_id } = req.body;
     const user_id = req.user.id;
 
+    if (req.user.role !== "admin") {
+      await db
+        .update(users)
+        .set({ role: "participant" })
+        .where(eq(users.id, Number(user_id)));
+    }
+
     if (!event_id) {
       return res.status(400).json({ message: "event_id requis" });
     }
 
     const event = await EventModel.findById(Number(event_id));
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    const cap = Number(event.capacity)
+    if (!Number.isFinite(cap) || cap <= 0) {
+      return res.status(400).json({ message: "Event capacity is not configured" })
+    }
+    const capLimit = cap
+    const countRow = await db
+      .select({ count: sql`count(${inscriptions.id})`.mapWith(Number) })
+      .from(inscriptions)
+      .where(eq(inscriptions.event_id, Number(event_id)))
+      .then((rows) => rows[0])
+
+    const currentCount = Number(countRow?.count || 0)
+    if (currentCount >= capLimit) {
+      return res.status(400).json({ message: "Event is full" })
+    }
 
     // (optionnel) empêcher inscription sur event passé
     const eventDate = new Date(event.date);

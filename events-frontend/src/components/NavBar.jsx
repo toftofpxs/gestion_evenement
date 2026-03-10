@@ -7,7 +7,6 @@ export default function NavBar(){
   const { user, logout } = useContext(AuthContext)
   const nav = useNavigate()
 
-  const isOrganizer = user?.role === 'organisateur' || user?.role === 'organizer'
   const isAdmin = user?.role === 'admin'
 
   return (
@@ -24,7 +23,6 @@ export default function NavBar(){
           )}
           {user && (
             <>
-              {isOrganizer && <Link to="/organizer" className="text-green-600 font-semibold hover:text-green-700">Organisateur</Link>}
               <Link to="/dashboard" className="hover:text-blue-600">Mon compte</Link>
               {isAdmin && <Link to="/admin" className="text-purple-600 font-semibold hover:text-purple-700">Admin</Link>}
               <button 

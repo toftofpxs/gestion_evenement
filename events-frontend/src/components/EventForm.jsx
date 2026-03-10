@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 export default function EventForm({ onSubmit, initial = {}, isLoading = false }){
   const [title, setTitle] = useState(initial.title || '')
@@ -6,9 +6,22 @@ export default function EventForm({ onSubmit, initial = {}, isLoading = false })
   const [date, setDate] = useState(initial.date || '')
   const [location, setLocation] = useState(initial.location || '')
   const [price, setPrice] = useState(initial.price || '')
+  const [capacity, setCapacity] = useState(initial.capacity ?? '')
   const [photos, setPhotos] = useState([])
   const [existingPhotos, setExistingPhotos] = useState(initial.photos || [])
   const [photoPreviews, setPhotoPreviews] = useState([])
+
+  useEffect(() => {
+    setTitle(initial.title || '')
+    setDescription(initial.description || '')
+    setDate(initial.date || '')
+    setLocation(initial.location || '')
+    setPrice(initial.price || '')
+    setCapacity(initial.capacity ?? '')
+    setPhotos([])
+    setExistingPhotos(initial.photos || [])
+    setPhotoPreviews([])
+  }, [initial])
 
   const handlePhotoChange = (e) => {
     const files = Array.from(e.target.files || [])
@@ -36,6 +49,7 @@ export default function EventForm({ onSubmit, initial = {}, isLoading = false })
     formData.append('date', date)
     formData.append('description', description)
     formData.append('price', price || 0)
+    formData.append('capacity', capacity)
     
     // Ajouter photos existantes
     if (existingPhotos.length > 0) {
@@ -54,6 +68,7 @@ export default function EventForm({ onSubmit, initial = {}, isLoading = false })
     setDate('')
     setLocation('')
     setPrice('')
+    setCapacity('')
     setPhotos([])
     setExistingPhotos([])
     setPhotoPreviews([])
@@ -89,6 +104,15 @@ export default function EventForm({ onSubmit, initial = {}, isLoading = false })
         type="number"
         step="0.01"
         className="border p-2 rounded w-full" 
+      />
+      <input
+        value={capacity}
+        onChange={e=>setCapacity(e.target.value)}
+        placeholder="Limite de participants"
+        type="number"
+        min="1"
+        required
+        className="border p-2 rounded w-full"
       />
       <textarea 
         value={description} 

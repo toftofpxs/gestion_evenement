@@ -82,8 +82,17 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const refreshProfile = async () => {
+    const token = getToken()
+    if (!token || isTokenExpired(token)) return null
+    const res = await api.get('/users/me')
+    localStorage.setItem('user', JSON.stringify(res.data))
+    setUser({ ...res.data, token })
+    return res.data
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
