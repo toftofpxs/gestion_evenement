@@ -57,13 +57,19 @@ export const login = async (req, res, next) => {
     console.log('[LOGIN] headers content-type:', req.headers['content-type']);
     console.log('[LOGIN] body:', req.body);
 
-    const { email, password } = req.body;
+    const { email, identifier, password } = req.body;
+    const loginIdentifier = String(identifier || email || '').trim();
 
-    if (!email || !password) {
+    if (!loginIdentifier || !password) {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const user = await UserModel.findByEmail(email);
+    const user = await db
+      .select()
+      .from(users)
+      .where(sql`LOWER(${users.email}) = LOWER(${loginIdentifier}) OR LOWER(${users.name}) = LOWER(${loginIdentifier})`)
+      .then((rows) => rows[0]);
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }

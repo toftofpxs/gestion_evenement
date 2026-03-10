@@ -16,22 +16,15 @@ import { useAuth } from '../context/AuthContext';
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const validateFields = () => {
-    if (!email.trim()) {
-      setErrorMessage('Veuillez saisir votre email');
-      Alert.alert('Erreur', 'Veuillez saisir votre email');
-      return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setErrorMessage("Format d'email invalide");
-      Alert.alert('Erreur', "Format d'email invalide");
+    if (!identifier.trim()) {
+      setErrorMessage('Veuillez saisir votre email ou nom utilisateur');
+      Alert.alert('Erreur', 'Veuillez saisir votre email ou nom utilisateur');
       return false;
     }
 
@@ -53,7 +46,7 @@ export default function LoginScreen({ navigation }) {
 
     try {
       const response = await API.post('/auth/login', {
-        email: email.trim().toLowerCase(),
+        identifier: identifier.trim(),
         password,
       });
 
@@ -86,13 +79,13 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.title}>Gestion Événements</Text>
         <Text style={styles.subtitle}>Connectez-vous pour continuer</Text>
 
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>Email ou nom utilisateur</Text>
         <TextInput
           style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="votre@email.com"
-          keyboardType="email-address"
+          value={identifier}
+          onChangeText={setIdentifier}
+          placeholder="votre@email.com ou hocin123"
+          keyboardType="default"
           autoCapitalize="none"
           autoCorrect={false}
         />
